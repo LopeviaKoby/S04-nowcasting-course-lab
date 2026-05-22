@@ -1,0 +1,5 @@
+# Extra pip packages for optional model inference inside nowcasting-course-lab.
+# Install PyTorch with CUDA via conda first, then install these:
+#   pip install -r inference_requirements.txt
+einops
+timm

@@ -1,0 +1,11 @@
+cascast_repo: ../codigo_github/Repo_CasCast
+checkpoints:
+  earthformer: checkpoints/checkpoint_epoch_ef.pth
+  autoencoder: checkpoints/checkpoint_latest_ae.pth
+  diffusion: checkpoints/checkpoint_latest_diff.pth
+max_rain: 60.0
+input_frames: 13
+pred_frames: 12
+ddim_steps: 20
+# auto = CUDA si existe, si no CPU. Tambien puedes usar cpu o cuda.
+device: auto

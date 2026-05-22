@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Virtual environments and local config
+.env
+.venv/
+venv/
+env/
+*.log
+
+# Jupyter/runtime artifacts
+.jupyter/
+.ipython/
+
+# Large model checkpoints
+checkpoints/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+
+# Downloaded radar samples and generated arrays
+data/
+outputs/
+*.npy
+*.npz
+
+# Generated figures/tables
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.pdf
+*.csv
+*.xlsx
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

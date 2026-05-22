@@ -1,0 +1,17 @@
+name: nowcasting-course-lab
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - matplotlib
+  - seaborn
+  - scipy
+  - jupyterlab
+  - ipykernel
+  - pyyaml
+  - tqdm
+  - pip
+  - pip:
+      - huggingface_hub
