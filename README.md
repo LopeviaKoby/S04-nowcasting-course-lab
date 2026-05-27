@@ -31,6 +31,7 @@ nowcasting_course_lab/
 │   ├── 02_tarea_nowcasting_metricas.ipynb
 │   ├── 03_comparacion_modelos_post_inferencia.ipynb
 │   ├── 04_tarea_mini_proyecto_nowcasting_avanzado.ipynb
+│   ├── 05_tarea_piura_sophy_comparacion_interpretacion.ipynb
 │   └── nowcasting_metrics_lab.ipynb
 ├── data/
 │   └── samples/
@@ -230,7 +231,12 @@ Selecciona el kernel `Nowcasting Course Lab` si Jupyter lo solicita.
 5. `notebooks/04_tarea_mini_proyecto_nowcasting_avanzado.ipynb`
    - Mini-proyecto de 10 horas.
    - Incluye auditoria del dataset, comparacion de modelos, pooling espacial, metricas de objetos, extremos, baselines opcionales e incertidumbre.
-   - Pensado como reporte cientifico corto, no solo como ejercicio de codigo.
+   - Material de profundizacion opcional, no evaluado en el modulo corto.
+
+6. `notebooks/05_tarea_piura_sophy_comparacion_interpretacion.ipynb`
+   - Segunda tarea evaluada.
+   - Usa unicamente datos Sophy/Piura.
+   - Continua la tarea `02` con comparacion de modelos, resumen por archivo e interpretacion de extremos simples.
 
 ## 7. Que haras en el laboratorio
 
