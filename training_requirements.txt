@@ -1,0 +1,5 @@
+# Extra packages for Notebook 06 and scripts/train_earthformer_course.py.
+# Install on top of the base course environment:
+#   pip install -r training_requirements.txt
+torch
+einops

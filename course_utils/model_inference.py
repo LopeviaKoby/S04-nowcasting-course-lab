@@ -267,6 +267,7 @@ def run_optional_model_demo(
     ddim_steps: int | None = None,
     ensemble_member: int = 1,
     cfg_weight: float = 1.0,
+    scale_factor: float | None = None,
     save_outputs: bool = True,
 ) -> dict[str, np.ndarray]:
     """Run EarthFormer and CasCast for a small batch.
@@ -277,6 +278,11 @@ def run_optional_model_demo(
         Array with shape (B,25,128,128) or (25,128,128), in mm/h.
     sample_names:
         Names used when saving outputs. Required only when save_outputs=True.
+    scale_factor:
+        Latent scale factor for the CasCast diffusion. When ``None`` the model
+        estimates it from the batch via ``init_scale_factor`` (legacy behavior).
+        Pass the value the checkpoint was trained with (e.g. 0.702658) for
+        reproducible results that do not depend on the batch.
 
     Returns
     -------
@@ -319,6 +325,8 @@ def run_optional_model_demo(
     cascast.sample_noise_scheduler.set_timesteps(int(ddim_steps or config.get("ddim_steps", 20)))
     cascast.ens_member = ensemble_member
     cascast.cfg_weight = cfg_weight
+    if scale_factor is not None:
+        cascast.scale_factor = torch.tensor(float(scale_factor), device=torch_device)
 
     with torch.no_grad():
         x = torch.from_numpy(sequences[:, :INPUT_FRAMES, None]).float().to(torch_device)
@@ -343,7 +351,7 @@ def run_optional_model_demo(
         z_cond = rearrange(z_cond, "(b t) c h w -> b t c h w", b=b, t=t_future)
         z_cond = cascast._apply_past_context(z_cond, z_past)
 
-        if float(cascast.scale_factor.item()) == 1.0:
+        if scale_factor is None and float(cascast.scale_factor.item()) == 1.0:
             cascast.init_scale_factor(z_future)
 
         z_samples = cascast.denoise(

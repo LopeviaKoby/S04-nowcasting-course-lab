@@ -28,6 +28,7 @@ checkpoints/
 # Downloaded radar samples and generated arrays
 data/
 outputs/
+earthformer_training_lab/splits/
 *.npy
 *.npz
 
@@ -45,4 +46,3 @@ outputs/
 Thumbs.db
 .vscode/
 .idea/
-

@@ -2,22 +2,29 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import matplotlib.pyplot as plt
 
-from course_utils.data import LEAD_MINUTES
+from course_utils.data import LEAD_MINUTES, clean_rain_array
 from course_utils.palette import ERROR_LEVELS, RAIN_LEVELS, apply_course_style, error_cmap, rain_cmap
 
 
 def plot_event_grid(
     inputs: np.ndarray,
     target: np.ndarray,
-    pred: np.ndarray,
+    pred: "np.ndarray | Path | str",
     sample_name: str = "",
     prediction_source: str = "",
     lead_indices: tuple[int, ...] = (0, 1, 2, 5, 8, 11),
 ):
-    """Plot context, target, prediction, and absolute error."""
+    """Plot context, target, prediction, and absolute error.
+
+    ``pred`` may be a numpy array or a path to a .npy file on disk.
+    """
+    if isinstance(pred, (str, Path)):
+        pred = clean_rain_array(np.load(Path(pred)))
     apply_course_style()
     lead_indices = list(lead_indices)
     ncols = len(lead_indices)

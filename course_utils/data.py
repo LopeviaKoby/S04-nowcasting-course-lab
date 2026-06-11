@@ -89,9 +89,18 @@ def split_sequence(sequence: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     return inputs, target
 
 
-def make_persistence_prediction(inputs: np.ndarray, pred_frames: int = PRED_FRAMES) -> np.ndarray:
+def make_persistence_prediction(
+    inputs: np.ndarray,
+    pred_frames: int = PRED_FRAMES,
+    save_to: "Path | None" = None,
+) -> np.ndarray:
     last_observed_frame = clean_rain_array(inputs)[INPUT_FRAMES - 1]
-    return np.repeat(last_observed_frame[None, :, :], pred_frames, axis=0).astype(np.float32)
+    pred = np.repeat(last_observed_frame[None, :, :], pred_frames, axis=0).astype(np.float32)
+    if save_to is not None:
+        save_to = Path(save_to)
+        save_to.parent.mkdir(parents=True, exist_ok=True)
+        np.save(save_to, pred)
+    return pred
 
 
 def prediction_candidates(sample_name: str, paths: CoursePaths | None = None) -> list[tuple[str, Path]]:

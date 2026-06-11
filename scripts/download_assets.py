@@ -1,9 +1,25 @@
 #!/usr/bin/env python
-"""Download the small nowcasting lab assets from Hugging Face.
+"""Descarga datos y checkpoints del laboratorio de nowcasting desde Hugging Face.
 
-The basic lab only needs the five .npy radar sequences. The heavy model
-checkpoints are optional instructor assets and are downloaded only when
---checkpoints is provided.
+Datos (dataset andrexandrex322/ideam-nowcasting-samples):
+  samples/        -> data/samples/        (5 secuencias del curso, lo minimo)
+  ideam_data/     -> data/ideam_data/     (5 casos + training_dataset/ completo)
+  piura_data/     -> data/piura_data/     (casos Piura, tarea 02)
+  sophy_data/     -> data/sophy_data/     (casos Sophy, tarea 02)
+
+Checkpoints (modelo andrexandrex322/ideam-nowcasting-earthformer-cascast):
+  checkpoint_epoch_ef.pth     -> checkpoints/ef_ideam_final/ef_ckpt.pth
+  checkpoint_latest_ae.pth    -> checkpoints/ef_ideam_final/ae_ckpt.pth
+  checkpoint_latest_diff.pth  -> checkpoints/ef_ideam_final/diff_ckpt.pth
+
+Ejemplos:
+  python scripts/download_assets.py                  # solo las 5 muestras del curso
+  python scripts/download_assets.py --checkpoints    # muestras + checkpoints (4.7 GB)
+  python scripts/download_assets.py --piura --sophy   # datos de la tarea 02
+  python scripts/download_assets.py --all            # todo (datos + checkpoints, pesado)
+
+Sugerencia: lanza la descarga de checkpoints en una terminal mientras instalas las
+librerias de inferencia en otra; el .pth de difusion pesa varios GB.
 """
 
 from __future__ import annotations
@@ -14,8 +30,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
-from huggingface_hub import hf_hub_download
-from tqdm import tqdm
+from huggingface_hub import hf_hub_download, snapshot_download
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -27,79 +42,103 @@ from course_utils.data import EXPECTED_SAMPLE_SHAPE, SAMPLE_FILES
 SAMPLE_REPO_ID = "andrexandrex322/ideam-nowcasting-samples"
 MODEL_REPO_ID = "andrexandrex322/ideam-nowcasting-earthformer-cascast"
 
-CHECKPOINT_FILES = [
-    "checkpoint_epoch_ef.pth",
-    "checkpoint_latest_ae.pth",
-    "checkpoint_latest_diff.pth",
-]
+# Carpeta del dataset en HF -> carpeta local dentro de data/
+DATA_FOLDERS = {
+    "samples": "samples",
+    "ideam": "ideam_data",
+    "piura": "piura_data",
+    "sophy": "sophy_data",
+}
 
-
-def project_root() -> Path:
-    return ROOT
-
-
-def copy_downloaded_file(downloaded_path: str, destination: Path) -> None:
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(downloaded_path, destination)
+# Subcarpeta y mapeo de nombres HF -> nombres que esperan los scripts/config.
+CHECKPOINT_SUBDIR = "ef_ideam_final"
+CHECKPOINT_MAP = {
+    "checkpoint_epoch_ef.pth": "ef_ckpt.pth",
+    "checkpoint_latest_ae.pth": "ae_ckpt.pth",
+    "checkpoint_latest_diff.pth": "diff_ckpt.pth",
+}
 
 
 def validate_sample(path: Path) -> None:
     array = np.load(path)
     if array.shape != EXPECTED_SAMPLE_SHAPE:
         raise ValueError(
-            f"{path.name}: forma inesperada {array.shape}; "
-            f"se esperaba {EXPECTED_SAMPLE_SHAPE}."
+            f"{path.name}: forma inesperada {array.shape}; se esperaba {EXPECTED_SAMPLE_SHAPE}."
         )
+
+
+def download_data_folder(root: Path, hf_folder: str) -> Path:
+    """Descarga una carpeta del dataset a data/<hf_folder>/ preservando su estructura."""
+    data_dir = root / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    print(f"Descargando {hf_folder}/ ...")
+    snapshot_download(
+        repo_id=SAMPLE_REPO_ID,
+        repo_type="dataset",
+        local_dir=str(data_dir),
+        allow_patterns=[f"{hf_folder}/**"],
+    )
+    dest = data_dir / hf_folder
+    n = sum(1 for _ in dest.rglob("*.npy"))
+    print(f"Listo: {n} archivos .npy en {dest}")
+    return dest
 
 
 def download_samples(root: Path) -> None:
-    output_dir = root / "data" / "samples"
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    print("Descargando muestras .npy...")
-    for filename in tqdm(SAMPLE_FILES, unit="archivo"):
-        downloaded = hf_hub_download(
-            repo_id=SAMPLE_REPO_ID,
-            repo_type="dataset",
-            filename=f"samples/{filename}",
-        )
-        destination = output_dir / filename
-        copy_downloaded_file(downloaded, destination)
-        validate_sample(destination)
-
-    print(f"Listo: {len(SAMPLE_FILES)} muestras validadas en {output_dir}")
+    """Descarga las 5 muestras del curso a data/samples/ y las valida."""
+    dest = download_data_folder(root, DATA_FOLDERS["samples"])
+    for filename in SAMPLE_FILES:
+        validate_sample(dest / filename)
+    print(f"Validadas {len(SAMPLE_FILES)} muestras del curso en {dest}")
 
 
 def download_checkpoints(root: Path) -> None:
-    output_dir = root / "checkpoints"
+    """Descarga los checkpoints y los renombra en checkpoints/ef_ideam_final/."""
+    output_dir = root / "checkpoints" / CHECKPOINT_SUBDIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    print("Descargando checkpoints grandes del modelo...")
-    for filename in tqdm(CHECKPOINT_FILES, unit="archivo"):
-        downloaded = hf_hub_download(repo_id=MODEL_REPO_ID, filename=filename)
-        copy_downloaded_file(downloaded, output_dir / filename)
+    print("Descargando checkpoints (el de difusion pesa varios GB)...")
+    for hf_name, local_name in CHECKPOINT_MAP.items():
+        destination = output_dir / local_name
+        if destination.exists():
+            print(f"  ya existe, se omite: {local_name}")
+            continue
+        downloaded = hf_hub_download(repo_id=MODEL_REPO_ID, filename=hf_name)
+        shutil.copy2(downloaded, destination)
+        print(f"  {hf_name} -> {destination}")
 
-    print(f"Listo: checkpoints guardados en {output_dir}")
+    print(f"Listo: checkpoints en {output_dir}")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Descarga datos y, opcionalmente, checkpoints para el laboratorio."
     )
-    parser.add_argument(
-        "--checkpoints",
-        action="store_true",
-        help="Descarga tambien los checkpoints .pth grandes del modelo.",
-    )
+    parser.add_argument("--ideam", action="store_true", help="Descarga ideam_data/ (incluye training_dataset/).")
+    parser.add_argument("--piura", action="store_true", help="Descarga piura_data/ (tarea 02).")
+    parser.add_argument("--sophy", action="store_true", help="Descarga sophy_data/ (tarea 02).")
+    parser.add_argument("--checkpoints", action="store_true", help="Descarga los checkpoints .pth a checkpoints/ef_ideam_final/.")
+    parser.add_argument("--all", action="store_true", help="Descarga todos los datos y los checkpoints.")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    root = project_root()
+    root = ROOT
+
+    # Las 5 muestras del curso siempre se descargan (son el minimo para 01 y 03).
     download_samples(root)
-    if args.checkpoints:
+
+    if args.all or args.ideam:
+        download_data_folder(root, DATA_FOLDERS["ideam"])
+    if args.all or args.piura:
+        download_data_folder(root, DATA_FOLDERS["piura"])
+    if args.all or args.sophy:
+        download_data_folder(root, DATA_FOLDERS["sophy"])
+    if args.all or args.checkpoints:
         download_checkpoints(root)
+
+    print("\nDescarga completa.")
 
 
 if __name__ == "__main__":

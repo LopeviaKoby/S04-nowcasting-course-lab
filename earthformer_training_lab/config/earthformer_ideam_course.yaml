@@ -1,0 +1,72 @@
+# EarthFormer IDEAM - version docente del curso
+#
+# Este YAML esta inspirado en:
+# /codigo_github/Repo_CasCast/configs/sevir_used/EarthFormer_ideam.yaml
+#
+# Mantiene la convencion 13 -> 12:
+#   inputs: frames 0:13
+#   target: frames 13:25
+
+dataset:
+  train:
+    type: ideam
+    input_length: 13
+    pred_length: 12
+    total_length: 25
+    base_freq: 5min
+    data_dir: data/samples
+    list_dir: earthformer_training_lab/splits/demo
+    augment: true
+  valid:
+    type: ideam
+    input_length: 13
+    pred_length: 12
+    total_length: 25
+    base_freq: 5min
+    data_dir: data/samples
+    list_dir: earthformer_training_lab/splits/demo
+    augment: false
+
+trainer:
+  batch_size: 2
+  valid_batch_size: 2
+  max_epoch: 5
+
+dataloader:
+  num_workers: 0
+  pin_memory: false
+
+model:
+  type: non_ar_model
+  params:
+    sub_model:
+      EarthFormer_xy:
+        in_len: 13
+        out_len: 12
+        height: 128
+        width: 128
+        initial_downsample_stack_conv_num_layers: 3
+        initial_downsample_stack_conv_dim_list: [16, 64, 128]
+        initial_downsample_stack_conv_downscale_list: [2, 2, 2]
+        initial_downsample_stack_conv_num_conv_list: [2, 2, 2]
+
+    skill_score_params:
+      preprocess_type: rainrate
+      threshold_list: [0.5, 2, 5, 10]
+
+    save_best: RMSE
+    metrics_type: simple_course_metrics
+    data_type: fp32
+
+    optimizer:
+      EarthFormer_xy:
+        type: AdamW
+        params:
+          lr: 0.0001
+          betas: [0.9, 0.999]
+          weight_decay: 0.00001
+
+    extra_params:
+      loss_type: WeightedMSELoss
+      enabled_amp: false
+      save_epoch_interval: 1

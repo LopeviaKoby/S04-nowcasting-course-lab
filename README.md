@@ -13,6 +13,7 @@ nowcasting_course_lab/
 ├── README.md
 ├── environment.yml
 ├── inference_requirements.txt
+├── training_requirements.txt
 ├── config/
 │   └── model_demo_paths.yaml
 ├── course_utils/
@@ -21,17 +22,29 @@ nowcasting_course_lab/
 │   ├── model_inference.py
 │   ├── palette.py
 │   └── plotting.py
+├── earthformer_training_lab/
+│   ├── architectures/
+│   │   └── earthformer_xy.py
+│   ├── config/
+│   │   └── earthformer_ideam_course.yaml
+│   ├── data.py
+│   ├── model.py
+│   └── train.py
 ├── scripts/
 │   ├── download_assets.py
 │   ├── evaluate_predictions.py
 │   ├── make_persistence_predictions.py
-│   └── run_model_inference.py
+│   ├── run_inference_from_list.py
+│   ├── sequences_example.txt
+│   ├── run_model_inference.py
+│   └── train_earthformer_course.py
 ├── notebooks/
 │   ├── 01_walkthrough_nowcasting_practico.ipynb
 │   ├── 02_tarea_nowcasting_metricas.ipynb
 │   ├── 03_comparacion_modelos_post_inferencia.ipynb
 │   ├── 04_tarea_mini_proyecto_nowcasting_avanzado.ipynb
 │   ├── 05_tarea_piura_sophy_comparacion_interpretacion.ipynb
+│   ├── 06_entrenamiento_earthformer_paso_a_paso.ipynb
 │   └── nowcasting_metrics_lab.ipynb
 ├── data/
 │   └── samples/
@@ -98,23 +111,36 @@ Si ya instalaste otro kernel por accidente, no pasa nada. Puedes seguir usando `
 python -m ipykernel install --user --name nowcasting-course-lab --display-name "Nowcasting Course Lab"
 ```
 
-Luego prueba una corrida pequena desde la linea de comandos. `--device auto` usa NVIDIA si existe y CPU si no:
+### Forma recomendada: una lista de secuencias en un `.txt`
+
+El script `scripts/run_inference_from_list.py` lee un archivo de texto con **una ruta `.npy`
+por linea** (formato en `scripts/sequences_example.txt`). Cada archivo debe tener forma
+`(25, 128, 128)` en mm/h. Las rutas pueden ser absolutas o relativas a la carpeta del curso.
+Las predicciones se guardan por el *stem* de cada archivo en
+`outputs/predictions/{persistence,earthformer,cascast}/`.
+
+```bash
+# Solo EarthFormer (rapido, funciona en CPU):
+python scripts/run_inference_from_list.py scripts/sequences_example.txt --stage earthformer
+
+# EarthFormer + CasCast (difusion). En GPU:
+python scripts/run_inference_from_list.py scripts/sequences_example.txt --stage all --ddim-steps 20 --device auto
+
+# Si solo tienes CPU, empieza con pocos pasos para probar:
+python scripts/run_inference_from_list.py scripts/sequences_example.txt --stage all --device cpu --ddim-steps 2 --cpu-threads 8
+```
+
+Para tus propios casos, copia `scripts/sequences_example.txt`, pon tus rutas y pasalo al script.
+CasCast usa por defecto 1 miembro de ensamble; subelo con `--ens-members 10` para una media mas
+suave (mucho mas lento). El factor de escala latente sale de `config/model_demo_paths.yaml`.
+
+### Forma alternativa: solo las 5 muestras del curso
+
+`scripts/run_model_inference.py` corre la inferencia unicamente sobre las muestras de
+`data/samples/`. `--device auto` usa NVIDIA si existe y CPU si no:
 
 ```bash
 python scripts/run_model_inference.py --stage earthformer --smoke --device auto
-python scripts/run_model_inference.py --stage all --smoke --device auto
-```
-
-Si solo tienes CPU, empieza asi:
-
-```bash
-python scripts/run_model_inference.py --stage earthformer --smoke --device cpu --cpu-threads 8
-python scripts/run_model_inference.py --stage all --smoke --device cpu --ddim-steps 2 --cpu-threads 8
-```
-
-Para procesar los 5 casos:
-
-```bash
 python scripts/run_model_inference.py --stage all --sample all --ddim-steps 20 --device auto
 ```
 
@@ -151,25 +177,89 @@ outputs/evaluation/overall_summary.csv
 outputs/evaluation/figures/
 ```
 
-## 3. Descargar las muestras desde Hugging Face
+## 2c. Extras opcionales para entrenamiento EarthFormer
 
-Las muestras estan publicadas aqui:
+No necesitas crear otro ambiente. Usa el mismo `nowcasting-course-lab` e instala los extras de entrenamiento encima:
 
-<https://huggingface.co/datasets/andrexandrex322/ideam-nowcasting-samples/tree/main/samples>
+```bash
+conda activate nowcasting-course-lab
+pip install -r training_requirements.txt
+```
 
-Para descargarlas automaticamente:
+Este extra se usa en:
+
+```text
+notebooks/06_entrenamiento_earthformer_paso_a_paso.ipynb
+scripts/train_earthformer_course.py
+```
+
+El notebook 06 reconstruye el entrenamiento de EarthFormer de forma pedagogica: dataset, split, YAML, arquitectura, forward pass, perdida, loop de entrenamiento y checkpoint `.pth`.
+
+Para una prueba rapida:
 
 ```bash
 python scripts/download_assets.py
+python scripts/train_earthformer_course.py --smoke --device auto
 ```
 
-El script guardara los 5 archivos `.npy` en:
+Para el ejemplo corto de 5 epocas:
+
+```bash
+python scripts/train_earthformer_course.py --epochs 5 --device auto
+```
+
+Los checkpoints se guardan en:
 
 ```text
-data/samples/
+outputs/training/earthformer_course/checkpoints/earthformer/
 ```
 
-Tambien revisara que cada secuencia tenga forma `(25, 128, 128)`.
+Nota: este entrenamiento con 5 muestras es didactico. Sirve para explicar el flujo y verificar que se puede guardar un `.pth`, pero no reemplaza un entrenamiento cientifico completo con miles de secuencias.
+
+## 3. Descargar datos y checkpoints desde Hugging Face
+
+> **Hazlo temprano.** El checkpoint de difusion pesa ~3.9 GB. Conviene lanzar la descarga en
+> una terminal y, mientras baja, instalar en otra terminal las librerias de inferencia (seccion 2b).
+> Solo necesitas `huggingface_hub`, que ya viene en el ambiente del curso.
+
+Todo se descarga con un solo script, `scripts/download_assets.py`. Las fuentes son:
+
+- Datos (dataset): <https://huggingface.co/datasets/andrexandrex322/ideam-nowcasting-samples>
+- Checkpoints (modelo): <https://huggingface.co/andrexandrex322/ideam-nowcasting-earthformer-cascast>
+
+```bash
+conda activate nowcasting-course-lab
+
+# Minimo para los notebooks 01 y 03: las 5 muestras del curso (-> data/samples/).
+python scripts/download_assets.py
+
+# Checkpoints EarthFormer + Autoencoder + CasCast (~4.7 GB).
+python scripts/download_assets.py --checkpoints
+
+# Datos de la tarea 02 (Piura y Sophy).
+python scripts/download_assets.py --piura --sophy
+
+# Dataset completo de IDEAM, incluido training_dataset/ (para el notebook 06).
+python scripts/download_assets.py --ideam
+
+# Todo de una vez (datos + checkpoints, pesado).
+python scripts/download_assets.py --all
+```
+
+El script organiza las descargas asi:
+
+```text
+data/samples/                 # 5 secuencias del curso (siempre)
+data/ideam_data/              # 5 casos + ideam_data/training_dataset/ con --ideam
+data/piura_data/              # casos Piura con --piura
+data/sophy_data/              # casos Sophy con --sophy
+checkpoints/ef_ideam_final/   # ef_ckpt.pth, ae_ckpt.pth, diff_ckpt.pth con --checkpoints
+```
+
+Las 5 muestras del curso se validan automaticamente con forma `(25, 128, 128)`. Los checkpoints
+se descargan a `checkpoints/ef_ideam_final/` con los nombres `ef_ckpt.pth`, `ae_ckpt.pth` y
+`diff_ckpt.pth`, que es exactamente donde los busca `config/model_demo_paths.yaml`. No hace falta
+configurar nada mas: la inferencia de los notebooks 01 y 03 los usa desde ahi.
 
 ## 4. Crear un pronostico base de persistencia
 
@@ -210,9 +300,10 @@ Selecciona el kernel `Nowcasting Course Lab` si Jupyter lo solicita.
 ## 6. Orden recomendado de notebooks
 
 1. `notebooks/01_walkthrough_nowcasting_practico.ipynb`
-   - Demostracion progresiva para clase.
-   - Carga un caso, grafica la tormenta, compara persistencia y calcula RMSE/CSI.
-   - Incluye una seccion avanzada opcional para EarthFormer + Autoencoder + CasCast.
+   - **Paso 1 del flujo: generar y mirar predicciones.**
+   - Carga un caso, lo separa en contexto/futuro, construye persistencia y la visualiza.
+   - Explica como generar EarthFormer y CasCast con `scripts/run_inference_from_list.py`.
+   - No calcula metricas: solo genera y visualiza. Las metricas viven en el notebook 03.
 
 2. `notebooks/02_tarea_nowcasting_metricas.ipynb`
    - Tarea guiada para estudiantes.
@@ -224,9 +315,12 @@ Selecciona el kernel `Nowcasting Course Lab` si Jupyter lo solicita.
    - Usa las mismas utilidades compartidas que los otros notebooks.
 
 4. `notebooks/03_comparacion_modelos_post_inferencia.ipynb`
-   - Se usa despues de correr `scripts/run_model_inference.py`.
-   - Compara persistencia, EarthFormer y CasCast con las mismas metricas.
-   - Resume metricas por archivo, por modelo y por umbral.
+   - **Paso 2 del flujo: medir y comparar.**
+   - Se usa despues de generar predicciones (notebook 01 o `run_inference_from_list.py`).
+   - Define las metricas con formulas (MAE, RMSE, sesgo, Pearson, CSI, POD, FAR, F1) y las
+     calcula **una sola vez** con `evaluate_predictions`.
+   - Compara persistencia, EarthFormer y CasCast: tablas por archivo/modelo, curvas por tiempo
+     de pronostico, fidelidad RMSE vs CSI y paneles visuales.
 
 5. `notebooks/04_tarea_mini_proyecto_nowcasting_avanzado.ipynb`
    - Mini-proyecto de 10 horas.
@@ -237,6 +331,11 @@ Selecciona el kernel `Nowcasting Course Lab` si Jupyter lo solicita.
    - Segunda tarea evaluada.
    - Usa unicamente datos Sophy/Piura.
    - Continua la tarea `02` con comparacion de modelos, resumen por archivo e interpretacion de extremos simples.
+
+7. `notebooks/06_entrenamiento_earthformer_paso_a_paso.ipynb`
+   - Notebook docente para explicar como se construye y entrena EarthFormer.
+   - Usa una copia local de la arquitectura real `EarthFormer_xy`.
+   - Muestra dataset, YAML, batch, forward pass, perdida ponderada, loop de entrenamiento y guardado `.pth`.
 
 ## 7. Que haras en el laboratorio
 
@@ -277,21 +376,16 @@ Los checkpoints de EarthFormer, Autoencoder y CasCast estan publicados aqui:
 
 <https://huggingface.co/andrexandrex322/ideam-nowcasting-earthformer-cascast/tree/main>
 
-Son archivos grandes. El checkpoint de difusion pesa varios GB, por eso no se requieren para el laboratorio basico.
-
-Si el instructor quiere descargarlos para una extension avanzada:
+Son archivos grandes (el de difusion pesa ~3.9 GB), por eso no se requieren para la parte basica
+de metricas con persistencia. Para correr EarthFormer/CasCast, descargalos con:
 
 ```bash
 python scripts/download_assets.py --checkpoints
 ```
 
-Los archivos quedaran en:
-
-```text
-checkpoints/
-```
-
-Este notebook basico no ejecuta inferencia completa EarthFormer + Autoencoder + Difusion. Su objetivo principal es entender la evaluacion de nowcasting.
+Quedaran en `checkpoints/ef_ideam_final/` con los nombres `ef_ckpt.pth`, `ae_ckpt.pth` y
+`diff_ckpt.pth`, justo donde los espera `config/model_demo_paths.yaml`. Con eso, la inferencia de
+los notebooks 01 y 03 (via `scripts/run_inference_from_list.py`) ya los encuentra sin configurar nada.
 
 La configuracion del demo avanzado esta en:
 
@@ -299,16 +393,15 @@ La configuracion del demo avanzado esta en:
 config/model_demo_paths.yaml
 ```
 
-Por defecto apunta a:
+Ahi se definen el repo de CasCast, las rutas de los checkpoints (`ef_ckpt.pth`, `ae_ckpt.pth`,
+`diff_ckpt.pth`) y el `scale_factor` latente que usa CasCast. Ajusta esas rutas si guardas los
+checkpoints en otro lugar.
 
-```text
-../codigo_github/Repo_CasCast
-```
-
-En el walkthrough, cambia `RUN_ADVANCED_MODEL_DEMO = True` solo si estas en un ambiente con PyTorch, CUDA y las dependencias de CasCast. Para uso mas reproducible, preferimos los scripts:
+La inferencia se corre siempre desde los scripts (no desde el notebook), para que sea
+reproducible:
 
 ```bash
-python scripts/run_model_inference.py --stage all --sample all --ddim-steps 20 --device auto
+python scripts/run_inference_from_list.py scripts/sequences_example.txt --stage all --device auto
 python scripts/evaluate_predictions.py --sample all
 ```
 

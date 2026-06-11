@@ -6,9 +6,9 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import BoundaryNorm, ListedColormap
 
 
-RAIN_LEVELS = [0.0, 0.5, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0, 60.0]
+RAIN_LEVELS = [0.05, 0.5, 2.0, 5.0, 10.0, 20.0, 30.0, 50.0, 60.0]
 RAIN_COLORS = [
-    "#eeeeee",  # 0.0 - 0.5: no/trace rain, gray like the reference figure
+    "#DCDADA",  # 0.0 - 0.5: no/trace rain, gray like the reference figure
     "#00a000",  # 0.5 - 2.0: light rain starts green
     "#00bf18",  # 2.0 - 5.0
     "#00e02a",  # 5.0 - 10.0
