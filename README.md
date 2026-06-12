@@ -1,10 +1,10 @@
 # Laboratorio de Nowcasting de Precipitacion
 
-Este material esta pensado para estudiantes que no necesariamente programan todos los dias. La idea es ejecutar un flujo pequeno y reproducible para entender un problema central del nowcasting de precipitacion:
+Este material está pensado para estudiantes que no necesariamente programan todos los días. La idea es ejecutar un flujo pequeño y reproducible para entender un problema central del nowcasting de precipitacion:
 
-> un pronostico puede tener buen error promedio, pero fallar justo donde mas importa: lluvia intensa, nucleos localizados y desplazamiento espacial.
+> Un pronóstico puede tener buen error promedio, pero fallar justo donde más importa: lluvia intensa, núcleos localizados y desplazamiento espacial.
 
-El laboratorio usa 5 secuencias de radar IDEAM en formato `.npy`, cada una con forma `(25, 128, 128)`. Usaremos los primeros 13 cuadros como contexto y los ultimos 12 cuadros como futuro a pronosticar.
+El laboratorio usa 5 secuencias de radar IDEAM en formato `.npy`, cada una con forma `(25, 128, 128)`. Usaremos los primeros 13 cuadros como contexto y los últimos 12 cuadros como futuro a pronosticar.
 
 ## Estructura del curso
 
